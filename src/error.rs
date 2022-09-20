@@ -1,13 +1,8 @@
 use std::num::TryFromIntError;
 use std::string::FromUtf8Error;
 
-use cosmwasm_std::{StdError, Addr};
-use thiserror::{
-    Error,
-    private::{DisplayAsDisplay, AsDynError},
-};
-//use cw_controllers::AdminError;
-//use cw_utils::PaymentError;
+use cosmwasm_std::{Addr, StdError};
+use thiserror::Error;
 
 /// Never is a placeholder to ensure we don't return any errors
 #[derive(Error, Debug)]
@@ -25,7 +20,6 @@ pub enum ContractError {
     #[error("{0}")]
     Admin(#[from] AdminError),
     */
-
     #[error("Unregistered Asset : {address}")]
     UnregisteredAsset { address: Addr },
 
@@ -49,6 +43,9 @@ pub enum ContractError {
 
     #[error("Only accepts tokens that originate on this chain, not native tokens of remote chain")]
     NoForeignTokens {},
+
+    #[error("Only accepts secret tokens that originate on this chain")]
+    OnlySecretTokens {},
 
     #[error("Parsed port from denom ({port}) doesn't match packet")]
     FromOtherPort { port: String },

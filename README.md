@@ -1,7 +1,7 @@
-# CW20 ICS20
+# SNIP20 ICS20
 
-This is an *IBC Enabled* contract that allows us to send CW20 tokens from one chain over the standard ICS20
-protocol to the bank module of another chain. In short, it let's us send our custom CW20 tokens with IBC and use
+This is an _IBC Enabled_ contract that allows us to send SNIP20 tokens from one chain over the standard ICS20
+protocol to the bank module of another chain. In short, it let's us send our custom SNIP20 tokens with IBC and use
 them just like native tokens on other chains.
 
 It is only designed to send tokens and redeem previously sent tokens. It will not mint tokens belonging
@@ -17,14 +17,14 @@ An external party first needs to make one or more channels using this contract a
 unordered channels for the version negotiation. Once established, it manages a list of known channels. You can use
 [ts-relayer](https://github.com/confio/ts-relayer) `ibc-setup ics20` command to create these.
 
-After there is at least one channel, you can send any CW20 token to this contract via the
-[receiver pattern](https://github.com/CosmWasm/cw-plus/blob/master/packages/cw20/README.md#receiver).
+After there is at least one channel, you can send any SNIP20 token to this contract via the
+[receiver pattern](https://github.com/CosmWasm/cw-plus/blob/master/packages/CW20/README.md#receiver).
 The receive message must contain the channel to send over and the remote address to send to. It may optionally
 include a custom timeout.
 
 ## Messages
 
-It only accepts CW20ReceiveMsg from a cw20 contract. The data sent along with that message must be a JSON-serialized
+It only accepts SNIP20ReceiveMsg from a SNIP20 contract. The data sent along with that message must be a JSON-serialized
 TransferMsg:
 
 ```rust
@@ -41,22 +41,22 @@ pub struct TransferMsg {
 ```
 
 In addition, it supports directly sending native tokens via `ExecuteMsg::Transfer(TransferMsg)`.
-You must send *exactly one* coin denom along with the transfer message, and that amount will be transfered
+You must send _exactly one_ coin denom along with the transfer message, and that amount will be transfered
 to the remote host.
 
 ## Queries
 
 Queries only make sense relative to the established channels of this contract.
 
-* `Port{}` - returns the port ID this contract has bound, so you can create channels. This info can be queried 
+- `Port{}` - returns the port ID this contract has bound, so you can create channels. This info can be queried
   via wasmd contract info query, but we expose another query here for convenience.
-* `ListChannels{}` - returns a (currently unpaginated) list of all channels that have been created on this contract.
+- `ListChannels{}` - returns a (currently unpaginated) list of all channels that have been created on this contract.
   Returns their local channelId along with some basic metadata, like the remote port/channel and the connection they
   run on top of.
-* `Channel{id}` - returns more detailed information on one specific channel. In addition to the information available
+- `Channel{id}` - returns more detailed information on one specific channel. In addition to the information available
   in the list view, it returns the current outstanding balance on that channel, as well as the total amount that
   has ever been sent on the channel.
-  
+
 ## IBC Responses
 
 These are defined by the ICS20 spec.

@@ -1,16 +1,33 @@
-[workspace]
-members = [
-  "packages/controllers",
-  "contracts/ics20_proxy",
+[package]
+name = "snip20_ics20"
+version = "0.1.0"
+authors = []
+edition = "2018"
+exclude = [
+  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+  "contract.wasm",
+  "hash.txt",
 ]
 
-[profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# for quicker tests, cargo test --lib
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret", features = [
+  "stargate",
+  "ibc3"
+] }
+cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
+secret-storage-plus = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
+secret-toolkit = { git = "https://github.com/scrtlabs/secret-toolkit", branch = "cosmwasm-v1.0" }
+schemars = "0.8.9"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+thiserror = "1.0"

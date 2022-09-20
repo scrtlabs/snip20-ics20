@@ -1,10 +1,8 @@
 use cosmwasm_std::{Addr, IbcEndpoint, StdResult, Storage, Uint128};
 use secret_storage_plus::{Item, Map};
-use cosmwasm_schema::cw_serde;
+use serde::{Deserialize, Serialize};
 
 use crate::ContractError;
-
-pub const ADMIN: Item<Addr> = Item::new("admin");
 
 pub const CODE_HASH: Map<Addr, String> = Map::new("code_hash");
 
@@ -22,20 +20,15 @@ pub const CHANNEL_STATE: Map<(&str, &str), ChannelState> = Map::new("channel_sta
 /// Every snip20 contract we allow to be sent is stored here, possibly with a gas_limit
 //pub const ALLOW_LIST: Map<&Addr, AllowInfo> = Map::new("allow_list");
 
-#[derive(Default)]
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub struct ChannelState {
     pub outstanding: Uint128,
     pub total_sent: Uint128,
 }
 
-#[cw_serde]
-pub struct Config {
-    pub default_timeout: u64,
-    pub default_gas_limit: Option<u64>,
-}
-
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub struct ChannelInfo {
     /// id of this channel
     pub id: String,
@@ -45,13 +38,15 @@ pub struct ChannelInfo {
     pub connection_id: String,
 }
 
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub struct AllowInfo {
     pub code_hash: String,
     pub gas_limit: Option<u64>,
 }
 
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub struct ReplyArgs {
     pub channel: String,
     pub denom: String,
@@ -109,4 +104,14 @@ pub fn undo_reduce_channel_balance(
         Ok(state)
     })?;
     Ok(())
+}
+
+static KEY_TOKENS: &[u8] = b"tokens";
+
+pub fn store_tokens(storage: &mut dyn Storage, data: &Vec<String>) -> StdResult<()> {
+    Singleton::new(storage, KEY_TOKENS).save(data)
+}
+
+pub fn read_tokens(storage: &Storage) -> StdResult<Vec<String>> {
+    ReadonlySingleton::new(storage, KEY_TOKENS).load()
 }
