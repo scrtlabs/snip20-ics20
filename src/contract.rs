@@ -13,10 +13,10 @@ use crate::state::{increase_channel_balance, CHANNEL_INFO, CODE_HASH};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    mut deps: DepsMut,
+    mut _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: InitMsg,
+    _msg: InitMsg,
 ) -> Result<Response, ContractError> {
     Ok(Response::default())
 }
