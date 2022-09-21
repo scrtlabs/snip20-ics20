@@ -5,14 +5,14 @@ import { State as ConnectionState } from "secretjs/dist/protobuf_stuff/ibc/core/
 
 export const ibcDenom = (
   paths: {
-    portId: string;
-    channelId: string;
+    incomingPortId: string;
+    incomingChannelId: string;
   }[],
   coinMinimalDenom: string
 ): string => {
   const prefixes = [];
   for (const path of paths) {
-    prefixes.push(`${path.portId}/${path.channelId}`);
+    prefixes.push(`${path.incomingPortId}/${path.incomingChannelId}`);
   }
 
   const prefix = prefixes.join("/");

@@ -2,26 +2,16 @@ import { sha256 } from "@noble/hashes/sha256";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import {
-  fromBase64,
-  fromUtf8,
   MsgExecuteContract,
   MsgInstantiateContract,
   MsgStoreCode,
-  ProposalType,
   SecretNetworkClient,
   toBase64,
   toHex,
   toUtf8,
-  Tx,
   TxResultCode,
   Wallet,
 } from "secretjs";
-import {
-  QueryBalanceRequest,
-  QueryBalanceResponse,
-} from "secretjs//dist/protobuf_stuff/cosmos/bank/v1beta1/query";
-import { MsgSend } from "secretjs/dist/protobuf_stuff/cosmos/bank/v1beta1/tx";
-import { ContractCustomInfo } from "secretjs/dist/protobuf_stuff/secret/compute/v1beta1/types";
 import { AminoWallet } from "secretjs/dist/wallet_amino";
 import {
   ibcDenom,
@@ -218,7 +208,7 @@ beforeAll(async () => {
     "--config /home/hermes-user/.hermes/alternative-config.toml " +
     "create channel --channel-version ics20-1 --order ORDER_UNORDERED " +
     "--a-chain secretdev-1 --a-connection connection-0 " +
-    `--b-port transfer --a-port ${contracts.ics20.ibcPortId}`;
+    `--b-port transfer --a-port ${contracts.ics20.ibcPortId} > /dev/null`;
 
   // console.log(command);
 
@@ -292,7 +282,7 @@ test("send from 1 to 2", async () => {
   console.log("Waiting for balance on secretdev-2");
 
   const expectedIbcDenom = ibcDenom(
-    [{ portId: contracts.ics20.ibcPortId, channelId: channelId1 }],
+    [{ incomingChannelId: channelId2, incomingPortId: "transfer" }],
     `cw20:${contracts.snip20.address}`
   );
 
@@ -300,149 +290,18 @@ test("send from 1 to 2", async () => {
     execSync(
       `docker exec test-relayer-1 hermes clear packets --chain secretdev-2 --port transfer --channel ${channelId2}`
     );
-    const { balances } = await accounts2[1].secretjs.query.bank.allBalances({
+
+    const { balance } = await accounts2[1].secretjs.query.bank.balance({
+      denom: expectedIbcDenom,
       address: accounts2[1].address,
     });
 
-    console.log(`expectedDenom: ${expectedIbcDenom}`, balances);
+    if (balance) {
+      expect(balance.amount).toBe("1");
+      expect(balance.denom).toBe(expectedIbcDenom);
+      break;
+    }
+
     await sleep(5000);
   }
 });
-
-// describe("IBC", () => {
-//   test("contracts sanity", async () => {
-//     const res: any = await readonly.query.compute.queryContract({
-//       contractAddress: contracts["secretdev-1"].v1.address,
-//       codeHash: contracts["secretdev-1"].v1.codeHash,
-//       query: {
-//         ibc_list_channels: {
-//           port_id: "wasm." + contracts["secretdev-1"].v1.address,
-//         },
-//       },
-//     });
-//     expect(res?.channels?.length).toBe(1);
-//     expect(res?.channels[0]?.endpoint?.port_id).toBe(
-//       "wasm." + contracts["secretdev-1"].v1.address
-//     );
-//     expect(res?.channels[0]?.endpoint?.channel_id).toBe(channelId);
-
-//     const res2: any = await readonly.query.compute.queryContract({
-//       contractAddress: contracts["secretdev-1"].v1.address,
-//       codeHash: contracts["secretdev-1"].v1.codeHash,
-//       query: {
-//         ibc_channel: {
-//           port_id: "wasm." + contracts["secretdev-1"].v1.address,
-//           channel_id: channelId,
-//         },
-//       },
-//     });
-//     expect(res2?.channel?.endpoint?.port_id).toBe(
-//       "wasm." + contracts["secretdev-1"].v1.address
-//     );
-//     expect(res2?.channel?.endpoint?.channel_id).toBe(channelId);
-
-//     const tx = await accounts[0].secretjs.tx.compute.executeContract(
-//       {
-//         sender: accounts[0].address,
-//         contractAddress: contracts["secretdev-1"].v1.address,
-//         codeHash: contracts["secretdev-1"].v1.codeHash,
-//         msg: {
-//           send_ibc_packet: {
-//             message: "hello from test",
-//           },
-//         },
-//       },
-//       { gasLimit: 250_000 }
-//     );
-//     console.log("tx", tx);
-//     if (tx.code !== TxResultCode.Success) {
-//       console.error(tx.rawLog);
-//     }
-//     expect(tx.code).toBe(TxResultCode.Success);
-//     console.log(
-//       "tx after triggering ibc send endpoint",
-//       JSON.stringify(cleanBytes(tx), null, 2)
-//     );
-
-//     expect(tx.arrayLog.find((x) => x.key === "packet_data").value).toBe(
-//       `{"message":{"value":"${channelId}hello from test"}}`
-//     );
-
-//     const packetSendCommand =
-//       "docker exec ibc-relayer-1 hermes " +
-//       "--config /home/hermes-user/.hermes/alternative-config.toml " +
-//       "tx packet-recv --dst-chain secretdev-2 --src-chain secretdev-1 " +
-//       `--src-port ${contracts["secretdev-1"].v1.ibcPortId} ` +
-//       `--src-channel ${channelId}`;
-
-//     console.log(
-//       "calling docker exec on relayer with command",
-//       packetSendCommand
-//     );
-//     let packetSendResult = execSync(packetSendCommand);
-//     console.log(
-//       "finished executing command, result:",
-//       packetSendResult.toString()
-//     );
-
-//     const packetAckCommand =
-//       "docker exec ibc-relayer-1 hermes " +
-//       "--config /home/hermes-user/.hermes/alternative-config.toml " +
-//       "tx packet-ack --dst-chain secretdev-1 --src-chain secretdev-2 " +
-//       `--src-port ${contracts["secretdev-1"].v1.ibcPortId} ` +
-//       `--src-channel ${channelId}`;
-
-//     console.log(
-//       "calling docker exec on relayer with command",
-//       packetAckCommand
-//     );
-//     const packetAckResult = execSync(packetAckCommand);
-//     console.log(
-//       "finished executing command, result:",
-//       packetAckResult.toString()
-//     );
-
-//     let queryResult: any =
-//       await accounts[0].secretjs.query.compute.queryContract({
-//         contractAddress: contracts["secretdev-1"].v1.address,
-//         codeHash: contracts["secretdev-1"].v1.codeHash,
-//         query: {
-//           last_ibc_ack: {},
-//         },
-//       });
-
-//     const ack = fromUtf8(fromBase64(queryResult));
-
-//     expect(ack).toBe(`recv${channelId}hello from test`);
-
-//     queryResult = await accounts2[0].secretjs.query.compute.queryContract({
-//       contractAddress: contracts["secretdev-2"].v1.address,
-//       codeHash: contracts["secretdev-2"].v1.codeHash,
-//       query: {
-//         last_ibc_ack: {},
-//       },
-//     });
-
-//     expect(queryResult).toBe(`no ack yet`);
-
-//     queryResult = await accounts[0].secretjs.query.compute.queryContract({
-//       contractAddress: contracts["secretdev-1"].v1.address,
-//       codeHash: contracts["secretdev-1"].v1.codeHash,
-//       query: {
-//         last_ibc_receive: {},
-//       },
-//     });
-
-//     expect(queryResult).toBe(`no receive yet`);
-
-//     queryResult = await accounts2[0].secretjs.query.compute.queryContract({
-//       contractAddress: contracts["secretdev-2"].v1.address,
-//       codeHash: contracts["secretdev-2"].v1.codeHash,
-//       query: {
-//         last_ibc_receive: {},
-//       },
-//     });
-
-//     expect(queryResult).toBe(`${channelId}hello from test`);
-//   }, 80_000 /* 80 seconds */);
-// });
