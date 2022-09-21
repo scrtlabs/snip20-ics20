@@ -42,7 +42,7 @@ pub struct TransferMsg {
     pub channel: String,
     /// The remote address to send to.
     pub remote_address: String,
-    /// How long the packet lives in seconds. If not specified, use default_timeout
+    /// How long the packet lives in seconds
     pub timeout: u64,
 }
 
