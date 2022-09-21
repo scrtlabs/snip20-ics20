@@ -258,15 +258,13 @@ fn do_ibc_packet_receive(
     };
     REPLY_ARGS.save(deps.storage, &reply_args)?;
 
-    let to_send = Snip20Coin::from_parts(token_address.to_string(), msg.amount);
-
     let transfer = transfer_amount(
         token_address.to_string(),
         code_hash,
-        msg.receiver,
+        msg.receiver.clone(),
         msg.amount,
     );
-    let mut submsg = SubMsg::reply_on_error(transfer, RECEIVE_ID);
+    let submsg = SubMsg::reply_on_error(transfer, RECEIVE_ID);
 
     let res = IbcReceiveResponse::new()
         .set_ack(ack_success())
@@ -348,7 +346,7 @@ fn on_packet_failure(
         sender.into_string(),
         to_send.amount,
     );
-    let mut submsg = SubMsg::reply_on_error(send, ACK_FAILURE_ID);
+    let submsg = SubMsg::reply_on_error(send, ACK_FAILURE_ID);
 
     // similar event messages like ibctransfer module
     let res = IbcBasicResponse::new()

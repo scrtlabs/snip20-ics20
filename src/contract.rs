@@ -1,4 +1,3 @@
-//use asset::Contract;
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, IbcMsg, MessageInfo,
     Response, StdResult, SubMsg, Uint128,
@@ -52,20 +51,19 @@ pub fn execute_receive(
     }
 
     let api = deps.api;
-    execute_transfer(
+    execute_ibc_transfer(
         deps,
         env,
-        info,
         transfer_msg,
+        info.sender,
         wrapper.amount,
         api.addr_validate(&wrapper.sender)?,
     )
 }
 
-pub fn execute_transfer(
+pub fn execute_ibc_transfer(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
     msg: TransferMsg,
     token_address: Addr,
     amount: Uint128,
@@ -79,26 +77,30 @@ pub fn execute_transfer(
         return Err(ContractError::NoSuchChannel { id: msg.channel });
     }
 
-    // delta from user is in seconds
-    let timeout_delta = match msg.timeout {
-        Some(t) => t,
-        None => config.default_timeout,
-    };
-    // timeout is in nanoseconds
-    let timeout = env.block.time.plus_seconds(timeout_delta);
+    // Absolute timeout is in unix epoch
+    let timeout = env.block.time.plus_seconds(msg.timeout);
 
     // build ics20 packet
-    let packet = Ics20Packet::new(amount, amount.denom(), sender.as_ref(), &msg.remote_address);
+    let packet = Ics20Packet::new(
+        amount,
+        format!("cw20:{}", token_address),
+        sender.as_ref(),
+        &msg.remote_address,
+    );
     packet.validate()?;
 
     // Update the balance now (optimistically) like ibctransfer modules.
     // In on_packet_failure (ack with error message or a timeout), we reduce the balance appropriately.
     // This means the channel works fine if success acks are not relayed.
-    increase_channel_balance(deps.storage, &msg.channel, &amount.denom(), amount.amount())?;
+    increase_channel_balance(
+        deps.storage,
+        &msg.channel,
+        &format!("cw20:{}", token_address),
+        amount,
+    )?;
 
     // send response
     let res = Response::new()
-        .add_message(msg)
         .add_message(IbcMsg::SendPacket {
             channel_id: msg.channel,
             data: to_binary(&packet)?,
@@ -145,6 +147,6 @@ fn register_tokens(deps: DepsMut, env: Env, tokens: Vec<Snip20Data>) -> StdResul
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {}
 }
