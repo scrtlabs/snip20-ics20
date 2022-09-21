@@ -107,7 +107,9 @@ pub fn reply(deps: DepsMut, _env: Env, reply: Reply) -> Result<Response, Contrac
                     reply_args.amount,
                 )?;
 
-                Ok(Response::new().set_data(ack_fail(err)))
+                Ok(Response::new()
+                    .add_attribute("ack_error", &err)
+                    .set_data(ack_fail(err)))
             }
         },
         ACK_FAILURE_ID => match reply.result {
@@ -259,12 +261,24 @@ fn do_ibc_packet_receive(
     };
     REPLY_ARGS.save(deps.storage, &reply_args)?;
 
+    deps.api.debug(&format!(
+        "do_ibc_packet_receive() token={} code_hash={} receiver={} amount={}",
+        token_address,
+        code_hash,
+        msg.receiver.clone(),
+        msg.amount
+    ));
+
     let transfer = transfer_amount(
         token_address.to_string(),
         code_hash,
         msg.receiver.clone(),
         msg.amount,
     );
+
+    deps.api
+        .debug(&format!("do_ibc_packet_receive() transfer={:?}", transfer));
+
     let submsg = SubMsg::reply_on_error(transfer, RECEIVE_ID);
 
     let res = IbcReceiveResponse::new()

@@ -6,6 +6,7 @@ import {
   MsgInstantiateContract,
   MsgStoreCode,
   SecretNetworkClient,
+  Snip20Querier,
   toBase64,
   toHex,
   toUtf8,
@@ -208,7 +209,7 @@ beforeAll(async () => {
     "--config /home/hermes-user/.hermes/alternative-config.toml " +
     "create channel --channel-version ics20-1 --order ORDER_UNORDERED " +
     "--a-chain secretdev-1 --a-connection connection-0 " +
-    `--b-port transfer --a-port ${contracts.ics20.ibcPortId} > /dev/null`;
+    `--b-port transfer --a-port ${contracts.ics20.ibcPortId}`;
 
   // console.log(command);
 
@@ -228,80 +229,178 @@ beforeAll(async () => {
   await waitForIBCChannel("secretdev-2", "http://localhost:9391", channelId2);
 }, 180_000 /* 3 minutes timeout */);
 
-test("send from 1 to 2", async () => {
-  let tx = await accounts1[0].secretjs.tx.broadcast(
-    [
-      new MsgExecuteContract({
-        sender: accounts1[0].address,
-        contractAddress: contracts.ics20.address,
-        codeHash: contracts.ics20.codeHash,
-        msg: {
-          register_tokens: {
-            tokens: [
-              {
-                address: contracts.snip20.address,
-                code_hash: contracts.snip20.codeHash,
-              },
-            ],
+test(
+  "send from secretdev-1 to secretdev-2 then back to secretdev-1",
+  async () => {
+    const x = await accounts1[0].secretjs.tx.broadcast(
+      [
+        new MsgExecuteContract({
+          sender: accounts1[0].address,
+          contractAddress: contracts.snip20.address,
+          codeHash: contracts.snip20.codeHash,
+          msg: {
+            transfer: {
+              recipient: "secret1fc3fzy78ttp0lwuujw7e52rhspxn8uj52zfyne",
+              amount: "1",
+            },
           },
-        },
-      }),
-      new MsgExecuteContract({
-        sender: accounts1[0].address,
+        }),
+      ],
+      { gasLimit: 5e6 }
+    );
+    expect(x.code).toBe(0);
+    console.log(JSON.stringify(x));
+    return;
+
+    // register snip20 on ics20, then send tokens from secretdev-1
+    console.log("Sending tokens from secretdev-1...");
+
+    let tx = await accounts1[0].secretjs.tx.broadcast(
+      [
+        new MsgExecuteContract({
+          sender: accounts1[0].address,
+          contractAddress: contracts.ics20.address,
+          codeHash: contracts.ics20.codeHash,
+          msg: {
+            register_tokens: {
+              tokens: [
+                {
+                  address: contracts.snip20.address,
+                  code_hash: contracts.snip20.codeHash,
+                },
+              ],
+            },
+          },
+        }),
+        new MsgExecuteContract({
+          sender: accounts1[0].address,
+          contractAddress: contracts.snip20.address,
+          codeHash: contracts.snip20.codeHash,
+          msg: {
+            send: {
+              recipient: contracts.ics20.address,
+              recipient_code_hash: contracts.ics20.codeHash,
+              amount: "1",
+              msg: toBase64(
+                toUtf8(
+                  JSON.stringify({
+                    channel: channelId1,
+                    remote_address: accounts2[1].address,
+                    timeout: 10 * 60, // 10 minutes
+                  })
+                )
+              ),
+            },
+          },
+        }),
+        new MsgExecuteContract({
+          sender: accounts1[0].address,
+          contractAddress: contracts.snip20.address,
+          codeHash: contracts.snip20.codeHash,
+          msg: {
+            set_viewing_key: {
+              key: "banana",
+            },
+          },
+        }),
+      ],
+      {
+        gasLimit: 5_000_000,
+      }
+    );
+    if (tx.code !== TxResultCode.Success) {
+      console.error(tx.rawLog);
+    }
+    expect(tx.code).toBe(TxResultCode.Success);
+
+    const snip20Balance: any =
+      await accounts1[0].secretjs.query.compute.queryContract({
         contractAddress: contracts.snip20.address,
         codeHash: contracts.snip20.codeHash,
-        msg: {
-          send: {
-            recipient: contracts.ics20.address,
-            recipient_code_hash: contracts.ics20.codeHash,
-            amount: "1",
-            msg: toBase64(
-              toUtf8(
-                JSON.stringify({
-                  channel: channelId1,
-                  remote_address: accounts2[1].address,
-                  timeout: 10 * 60, // 10 minutes
-                })
-              )
-            ),
+        query: {
+          balance: {
+            key: "banana",
+            address: accounts1[0].address,
           },
         },
-      }),
-    ],
-    {
-      gasLimit: 5_000_000,
-    }
-  );
-  if (tx.code !== TxResultCode.Success) {
-    console.error(tx.rawLog);
-  }
-  expect(tx.code).toBe(TxResultCode.Success);
+      });
+    expect(snip20Balance.balance.amount).toBe("999");
 
-  console.log(tx.arrayLog);
+    console.log("Waiting for tokens to arrive to secretdev-2...");
 
-  console.log("Waiting for balance on secretdev-2");
-
-  const expectedIbcDenom = ibcDenom(
-    [{ incomingChannelId: channelId2, incomingPortId: "transfer" }],
-    `cw20:${contracts.snip20.address}`
-  );
-
-  while (true) {
-    execSync(
-      `docker exec test-relayer-1 hermes clear packets --chain secretdev-2 --port transfer --channel ${channelId2}`
+    const expectedIbcDenom = ibcDenom(
+      [{ incomingChannelId: channelId2, incomingPortId: "transfer" }],
+      `cw20:${contracts.snip20.address}`
     );
 
-    const { balance } = await accounts2[1].secretjs.query.bank.balance({
-      denom: expectedIbcDenom,
-      address: accounts2[1].address,
-    });
+    // wait for tokens to arrive to secretdev-2
+    while (true) {
+      try {
+        execSync(
+          `docker exec test-relayer-1 hermes clear packets --chain secretdev-2 --port transfer --channel ${channelId2} > /dev/null`
+        );
+      } catch (e) {}
 
-    if (balance) {
-      expect(balance.amount).toBe("1");
-      expect(balance.denom).toBe(expectedIbcDenom);
-      break;
+      const { balance } = await accounts2[1].secretjs.query.bank.balance({
+        denom: expectedIbcDenom,
+        address: accounts2[1].address,
+      });
+
+      if (balance) {
+        expect(balance.amount).toBe("1");
+        expect(balance.denom).toBe(expectedIbcDenom);
+        break;
+      }
+
+      await sleep(500);
     }
 
-    await sleep(5000);
-  }
-});
+    console.log("Sending tokens back from secretdev-2...");
+
+    // send tokens back from secretdev-2
+    tx = await accounts2[1].secretjs.tx.ibc.transfer({
+      sender: accounts2[1].address,
+      sourcePort: "transfer",
+      sourceChannel: channelId2,
+      token: {
+        denom: expectedIbcDenom,
+        amount: "1",
+      },
+      receiver: accounts2[1].address,
+      timeoutTimestampSec: String(
+        Math.floor(Date.now() / 1000) + 10 * 60
+      ) /* 10 minutes */,
+    });
+
+    if (tx.code !== TxResultCode.Success) {
+      console.error(tx.rawLog);
+    }
+    expect(tx.code).toBe(TxResultCode.Success);
+
+    console.log("Waiting for tokens to arrive back to secretdev-1...");
+
+    while (true) {
+      try {
+        execSync(
+          `docker exec test-relayer-1 hermes --config /home/hermes-user/.hermes/alternative-config.toml clear packets --chain secretdev-1 --port ${contracts.ics20.ibcPortId} --channel ${channelId1} > /dev/null`
+        );
+      } catch (e) {}
+
+      const snip20Balance: any =
+        await accounts1[0].secretjs.query.compute.queryContract({
+          contractAddress: contracts.snip20.address,
+          codeHash: contracts.snip20.codeHash,
+          query: {
+            balance: { key: "banana", address: accounts1[0].address },
+          },
+        });
+
+      if (snip20Balance.balance.amount === "1000") {
+        break;
+      }
+
+      await sleep(500);
+    }
+  },
+  5 * 60 * 1000 /* 5 minutes */
+);

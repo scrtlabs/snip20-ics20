@@ -92,12 +92,7 @@ pub fn execute_ibc_transfer(
     // Update the balance now (optimistically) like ibctransfer modules.
     // In on_packet_failure (ack with error message or a timeout), we reduce the balance appropriately.
     // This means the channel works fine if success acks are not relayed.
-    increase_channel_balance(
-        deps.storage,
-        &msg.channel,
-        &format!("cw20:{}", token_address),
-        amount,
-    )?;
+    increase_channel_balance(deps.storage, &msg.channel, token_address.as_str(), amount)?;
 
     // send response
     let res = Response::new()
