@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::Uint128;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct Snip20Coin {
     pub address: String,
     pub amount: Uint128,

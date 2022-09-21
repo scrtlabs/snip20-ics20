@@ -18,7 +18,7 @@ pub const CHANNEL_STATE: Map<(&str, &str), ChannelState> = Map::new("channel_sta
 /// Every snip20 contract we allow to be sent is stored here, possibly with a gas_limit
 //pub const ALLOW_LIST: Map<&Addr, AllowInfo> = Map::new("allow_list");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct ChannelState {
     pub outstanding: Uint128,
@@ -36,14 +36,14 @@ pub struct ChannelInfo {
     pub connection_id: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct AllowInfo {
     pub code_hash: String,
     pub gas_limit: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct ReplyArgs {
     pub channel: String,

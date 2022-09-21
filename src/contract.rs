@@ -143,7 +143,7 @@ fn register_tokens(deps: DepsMut, env: Env, tokens: Vec<Snip20Data>) -> StdResul
         )?));
     }
 
-    return Ok(output_msgs);
+    Ok(output_msgs)
 }
 
 #[entry_point]
