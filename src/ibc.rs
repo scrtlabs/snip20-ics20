@@ -2,18 +2,18 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    attr, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut,
-    Env, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg,
+    attr, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, DepsMut, Env,
+    IbcBasicResponse, IbcChannel, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg,
     IbcEndpoint, IbcOrder, IbcPacket, IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg,
     IbcReceiveResponse, Reply, Response, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
 
 use crate::amount::Snip20Coin;
 use crate::error::{ContractError, Never};
-use crate::msg::Snip20Transfer;
+
 use crate::state::{
     reduce_channel_balance, undo_reduce_channel_balance, ChannelInfo, ReplyArgs, CHANNEL_INFO,
-    CODE_HASH, CONFIG, REPLY_ARGS,
+    CODE_HASH, REPLY_ARGS,
 };
 
 pub const ICS20_VERSION: &str = "ics20-1";

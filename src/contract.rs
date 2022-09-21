@@ -1,16 +1,15 @@
 //use asset::Contract;
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, IbcMsg,
-    MessageInfo, Response, StdResult,
+    entry_point, from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, IbcMsg, MessageInfo,
+    Response, StdResult, SubMsg, Uint128,
 };
 
-use crate::amount::Snip20Coin;
 use crate::error::ContractError;
 use crate::ibc::Ics20Packet;
 use crate::msg::{ExecuteMsg, InitMsg, QueryMsg, Snip20Data, Snip20ReceiveMsg, TransferMsg};
 use secret_toolkit::snip20;
 
-use crate::state::{increase_channel_balance, CHANNEL_INFO, CODE_HASH, CONFIG};
+use crate::state::{increase_channel_balance, CHANNEL_INFO, CODE_HASH};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -45,19 +44,20 @@ pub fn execute_receive(
     info: MessageInfo,
     wrapper: Snip20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    let msg: TransferMsg = from_binary(&wrapper.msg.unwrap())?;
-    let amount = Amount::Snip20(Snip20Coin {
-        address: info.sender.to_string(),
-        amount: wrapper.amount,
-    });
+    let transfer_msg: TransferMsg;
+    if let Some(msg_bytes) = wrapper.msg {
+        transfer_msg = from_binary(&msg_bytes)?;
+    } else {
+        return Err(ContractError::MissingTransferMsg {});
+    }
 
     let api = deps.api;
     execute_transfer(
         deps,
         env,
         info,
-        msg,
-        amount,
+        transfer_msg,
+        wrapper.amount,
         api.addr_validate(&wrapper.sender)?,
     )
 }
@@ -67,17 +67,17 @@ pub fn execute_transfer(
     env: Env,
     info: MessageInfo,
     msg: TransferMsg,
-    amount: Amount,
+    token_address: Addr,
+    amount: Uint128,
     sender: Addr,
 ) -> Result<Response, ContractError> {
-    if amount.is_empty() {
+    if amount.is_zero() {
         return Err(ContractError::NoFunds {});
     }
     // ensure the requested channel is registered
     if !CHANNEL_INFO.has(deps.storage, &msg.channel) {
         return Err(ContractError::NoSuchChannel { id: msg.channel });
     }
-    let config = CONFIG.load(deps.storage)?;
 
     // delta from user is in seconds
     let timeout_delta = match msg.timeout {
@@ -88,12 +88,7 @@ pub fn execute_transfer(
     let timeout = env.block.time.plus_seconds(timeout_delta);
 
     // build ics20 packet
-    let packet = Ics20Packet::new(
-        amount.amount(),
-        amount.denom(),
-        sender.as_ref(),
-        &msg.remote_address,
-    );
+    let packet = Ics20Packet::new(amount, amount.denom(), sender.as_ref(), &msg.remote_address);
     packet.validate()?;
 
     // Update the balance now (optimistically) like ibctransfer modules.
@@ -104,7 +99,7 @@ pub fn execute_transfer(
     // send response
     let res = Response::new()
         .add_message(msg)
-        .add_messages(IbcMsg::SendPacket {
+        .add_message(IbcMsg::SendPacket {
             channel_id: msg.channel,
             data: to_binary(&packet)?,
             timeout: timeout.into(),
@@ -117,7 +112,7 @@ pub fn execute_transfer(
     Ok(res)
 }
 
-fn register_tokens(deps: DepsMut, env: Env, tokens: Vec<Snip20Data>) -> StdResult<Vec<CosmosMsg>> {
+fn register_tokens(deps: DepsMut, env: Env, tokens: Vec<Snip20Data>) -> StdResult<Vec<SubMsg>> {
     let mut output_msgs = vec![];
 
     for token in tokens {
@@ -130,20 +125,20 @@ fn register_tokens(deps: DepsMut, env: Env, tokens: Vec<Snip20Data>) -> StdResul
             &token_code_hash,
         )?;
 
-        output_msgs.push(snip20::register_receive_msg(
+        output_msgs.push(SubMsg::new(snip20::register_receive_msg(
             env.contract.code_hash.clone(),
             None,
             256,
             token_code_hash.clone(),
             token_address.clone(),
-        )?);
-        output_msgs.push(snip20::set_viewing_key_msg(
+        )?));
+        output_msgs.push(SubMsg::new(snip20::set_viewing_key_msg(
             "SNIP20-ICS20".into(),
             None,
             256,
             token_code_hash.clone(),
             token_address.clone(),
-        )?);
+        )?));
     }
 
     return Ok(output_msgs);

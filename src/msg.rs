@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary, Uint128};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 use crate::state::ChannelInfo;
 
@@ -46,7 +47,7 @@ pub struct TransferMsg {
     /// The remote address to send to.
     pub remote_address: String,
     /// How long the packet lives in seconds. If not specified, use default_timeout
-    pub timeout: Option<u64>,
+    pub timeout: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -23,6 +23,9 @@ pub enum ContractError {
     #[error("Unregistered Asset : {address}")]
     UnregisteredAsset { address: Addr },
 
+    #[error("Cannot find transfer msg from token")]
+    MissingTransferMsg {},
+
     #[error("Channel doesn't exist: {id}")]
     NoSuchChannel { id: String },
 

@@ -6,8 +6,6 @@ use crate::ContractError;
 
 pub const CODE_HASH: Map<Addr, String> = Map::new("code_hash");
 
-pub const CONFIG: Item<Config> = Item::new("ics20_config");
-
 // Used to pass info from the ibc_packet_receive to the reply handler
 pub const REPLY_ARGS: Item<ReplyArgs> = Item::new("reply_args");
 
@@ -20,7 +18,7 @@ pub const CHANNEL_STATE: Map<(&str, &str), ChannelState> = Map::new("channel_sta
 /// Every snip20 contract we allow to be sent is stored here, possibly with a gas_limit
 //pub const ALLOW_LIST: Map<&Addr, AllowInfo> = Map::new("allow_list");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct ChannelState {
     pub outstanding: Uint128,
@@ -104,14 +102,4 @@ pub fn undo_reduce_channel_balance(
         Ok(state)
     })?;
     Ok(())
-}
-
-static KEY_TOKENS: &[u8] = b"tokens";
-
-pub fn store_tokens(storage: &mut dyn Storage, data: &Vec<String>) -> StdResult<()> {
-    Singleton::new(storage, KEY_TOKENS).save(data)
-}
-
-pub fn read_tokens(storage: &Storage) -> StdResult<Vec<String>> {
-    ReadonlySingleton::new(storage, KEY_TOKENS).load()
 }
