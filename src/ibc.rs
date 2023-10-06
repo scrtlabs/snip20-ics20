@@ -33,15 +33,23 @@ pub struct Ics20Packet {
     pub receiver: String,
     /// the sender address
     pub sender: String,
+    pub memo: String,
 }
 
 impl Ics20Packet {
-    pub fn new<T: Into<String>>(amount: Uint128, denom: T, sender: &str, receiver: &str) -> Self {
+    pub fn new<T: Into<String>>(
+        amount: Uint128,
+        denom: T,
+        sender: &str,
+        receiver: &str,
+        memo: &str,
+    ) -> Self {
         Ics20Packet {
             denom: denom.into(),
             amount,
             sender: sender.to_string(),
             receiver: receiver.to_string(),
+            memo: memo.to_string(),
         }
     }
 

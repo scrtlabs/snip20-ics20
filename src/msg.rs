@@ -44,6 +44,7 @@ pub struct TransferMsg {
     pub remote_address: String,
     /// How long the packet lives in seconds
     pub timeout: u64,
+    pub memo: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]

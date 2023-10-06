@@ -86,6 +86,7 @@ pub fn execute_ibc_transfer(
         format!("cw20:{}", token_address),
         sender.as_ref(),
         &msg.remote_address,
+        &msg.memo,
     );
     packet.validate()?;
 
