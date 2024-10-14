@@ -1,7 +1,9 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { SecretNetworkClient, toHex, toUtf8 } from "secretjs";
-import { State as ChannelState } from "secretjs/dist/protobuf_stuff/ibc/core/channel/v1/channel";
-import { State as ConnectionState } from "secretjs/dist/protobuf_stuff/ibc/core/connection/v1/connection";
+import { State as ChannelState } from "secretjs/dist/grpc_gateway/ibc/core/channel/v1/channel.pb";
+/* import { State as ConnectionState } from "secretjs/dist/protobuf/ibc/core/connection/v1/connection"; */
+import { State as ConnectionState } from "secretjs/dist/grpc_gateway/ibc/core/connection/v1/connection.pb";
+
 
 export const ibcDenom = (
   paths: {
@@ -25,9 +27,9 @@ export async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function waitForBlocks(chainId: string, grpcWebUrl: string) {
-  const secretjs = await SecretNetworkClient.create({
-    grpcWebUrl,
+export async function waitForBlocks(chainId: string, url: string) {
+  const secretjs = new SecretNetworkClient({
+    url,
     chainId,
   });
 
@@ -49,10 +51,10 @@ export async function waitForBlocks(chainId: string, grpcWebUrl: string) {
 
 export async function waitForIBCConnection(
   chainId: string,
-  grpcWebUrl: string
+  url: string
 ) {
-  const secretjs = await SecretNetworkClient.create({
-    grpcWebUrl,
+  const secretjs = new SecretNetworkClient({
+    url,
     chainId,
   });
 
@@ -79,11 +81,11 @@ export async function waitForIBCConnection(
 
 export async function waitForIBCChannel(
   chainId: string,
-  grpcWebUrl: string,
+  url: string,
   channelId: string
 ) {
-  const secretjs = await SecretNetworkClient.create({
-    grpcWebUrl,
+  const secretjs = new SecretNetworkClient({
+    url,
     chainId,
   });
 
@@ -93,7 +95,7 @@ export async function waitForIBCChannel(
       const { channels } = await secretjs.query.ibc_channel.channels({});
 
       for (const c of channels) {
-        if (c.channelId === channelId && c.state == ChannelState.STATE_OPEN) {
+        if (c.channel_id === channelId && c.state == ChannelState.STATE_OPEN) {
           console.log(`${channelId} is open on ${chainId}`);
           break outter;
         }
