@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   localsecret-1:
-    image: "ghcr.io/scrtlabs/localsecret:v1.4.0"
+    image: "ghcr.io/scrtlabs/localsecret:v1.14.2"
     # ports are only here in case interaction
     # between localhost and container is desired
     ports:
@@ -15,7 +15,7 @@ services:
     environment:
       LOG_LEVEL: "TRACE"
   localsecret-2:
-    image: "ghcr.io/scrtlabs/localsecret:v1.4.0"
+    image: "ghcr.io/scrtlabs/localsecret:v1.14.2"
     # ports are only here in case interaction
     # between localhost and container is desired
     ports:
@@ -32,6 +32,7 @@ services:
 
   relayer:
     image: "hermes:v0.0.0"
+    container_name: test-relayer-1
     depends_on:
       localsecret-1:
         condition: service_healthy
